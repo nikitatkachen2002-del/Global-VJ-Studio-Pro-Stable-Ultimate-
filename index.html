@@ -1,0 +1,1581 @@
+<!-- Global VJ Studio Pro — Stable Ultimate Engine v2 -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Global VJ Studio Pro — Stable Ultimate Engine v2</title>
+    <style>
+        :root {
+            --app-height: 100dvh;
+            --panel-max-height: 58vh;
+            --app-safe-top: env(safe-area-inset-top, 0px);
+            --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html {
+            width: 100%; height: var(--app-height, 100dvh); min-height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #fff;
+            user-select: none;
+            overscroll-behavior: none;
+        }
+
+        #canvas-container {
+            position: fixed; inset: 0; z-index: 1; pointer-events: none;
+        }
+
+        canvas { display: block; width: 100% !important; height: 100% !important; }
+
+        #webgl-error {
+            display: none; position: absolute; inset: 0; z-index: 200;
+            background: #050508; color: #ff6b6b; padding: 40px; font-size: 14px; line-height: 1.6;
+        }
+
+        #remote-control {
+            position: fixed;
+            bottom: calc(var(--app-safe-bottom, 0px) + 12px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            width: 1180px;
+            max-width: 96%;
+            max-height: var(--panel-max-height, 58vh);
+            overflow-y: auto;
+            padding: 18px 20px 16px;
+            background: rgba(10, 10, 14, 0.88);
+            backdrop-filter: blur(35px);
+            -webkit-backdrop-filter: blur(35px);
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            pointer-events: auto;
+            transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            visibility: visible;
+        }
+
+        #remote-control::-webkit-scrollbar { width: 6px; }
+        #remote-control::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+        #remote-control.hidden {
+            opacity: 0;
+            transform: translate(-50%, 60px) scale(0.97);
+            pointer-events: none;
+            visibility: hidden;
+        }
+
+        #show-menu-btn {
+            position: fixed;
+            bottom: calc(var(--app-safe-bottom, 0px) + 12px);
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            z-index: 99;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.95);
+            padding: 9px 22px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        #show-menu-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+        }
+
+        .column-header {
+            grid-column: 1 / -1;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            padding-bottom: 6px;
+            margin-bottom: 2px;
+            gap: 10px;
+        }
+
+        .column-header h1 {
+            font-size: 11px; font-weight: 600; letter-spacing: 2px; color: #ddd;
+        }
+
+        .header-meta {
+            display: flex; align-items: center; gap: 10px; margin-left: auto;
+            font-size: 9px; letter-spacing: 1px; color: #888;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.1); border: none; color: #fff;
+            width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 10px;
+            transition: background 0.2s; pointer-events: auto; flex-shrink: 0;
+        }
+        .close-btn:hover { background: rgba(255, 255, 255, 0.3); }
+
+        .section-group { display: flex; flex-direction: column; gap: 8px; }
+        .slider-group { display: flex; flex-direction: column; gap: 3px; }
+        .slider-group label {
+            font-size: 8px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        select, input[type="text"] {
+            width: 100%; padding: 7px; border-radius: 6px;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; font-size: 10px; outline: none; cursor: pointer; pointer-events: auto;
+        }
+        select option { background: #121216; color: #fff; }
+
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px; outline: none; pointer-events: auto; cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 12px; height: 12px; border-radius: 50%;
+            background: #fff; cursor: pointer;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+        }
+
+        .btn-group { display: flex; gap: 4px; pointer-events: auto; }
+
+        .btn {
+            flex: 1; padding: 7px; border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff; font-size: 9px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; pointer-events: auto;
+            display: flex; justify-content: center; align-items: center; gap: 3px;
+            white-space: nowrap;
+        }
+
+        .btn:hover { background: rgba(255, 255, 255, 0.25); }
+        .btn.active { background: #fff; color: #000; }
+        .btn.danger { background: rgba(255, 50, 50, 0.25); border-color: rgba(255, 50, 50, 0.5); color: #ff6666; }
+        .btn.danger:hover { background: rgba(255, 50, 50, 0.5); }
+        .btn[hidden] { display: none; }
+
+        input[type="file"] { display: none; }
+
+        .extras {
+            grid-column: span 4;
+            display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end;
+            border-top: 1px solid rgba(255,255,255,0.12);
+            padding-top: 10px;
+        }
+        .extras .slider-group { flex: 1; min-width: 110px; }
+        .extras .btn-group { min-width: 280px; }
+
+        .meters {
+            display: flex; gap: 4px; align-items: flex-end; height: 14px;
+        }
+        .meter {
+            width: 36px; height: 6px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden;
+        }
+        .meter > i {
+            display: block; height: 100%; width: 0%; background: #fff;
+            box-shadow: 0 0 8px rgba(255,255,255,0.7);
+            transition: width 0.08s linear;
+        }
+        #meter-bass > i { background: #ff4d6d; }
+        #meter-mid > i { background: #7cff6b; }
+        #meter-treble > i { background: #6bcbff; }
+
+        #rec-indicator {
+            position: fixed; top: calc(var(--app-safe-top, 0px) + 12px); right: 16px; z-index: 100;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+            padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255,50,50,0.6);
+            color: #ff5555; font-weight: bold; font-size: 12px; letter-spacing: 1px;
+            display: none; animation: pulse 1s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        #toast {
+            position: fixed; top: calc(var(--app-safe-top, 0px) + 12px); left: 50%; transform: translateX(-50%) translateY(-20px);
+            z-index: 120; background: rgba(12,12,18,0.92); border: 1px solid rgba(255,255,255,0.2);
+            padding: 10px 16px; border-radius: 12px; font-size: 11px; letter-spacing: 0.4px;
+            opacity: 0; pointer-events: none; transition: all 0.3s ease; max-width: 80%;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        #hotkeys {
+            display: none; position: fixed; inset: 0; z-index: 150;
+            background: rgba(0,0,0,0.55); align-items: center; justify-content: center;
+        }
+        #hotkeys.open { display: flex; }
+        #hotkeys .card {
+            width: 420px; max-width: 90%; background: rgba(12,12,18,0.94);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; padding: 20px;
+            font-size: 12px; line-height: 1.7; color: #ddd;
+        }
+        #hotkeys h2 { font-size: 11px; letter-spacing: 2px; margin-bottom: 10px; color: #fff; }
+        kbd {
+            display: inline-block; min-width: 18px; padding: 1px 5px; margin-right: 6px;
+            border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; font-size: 10px; color: #fff;
+        }
+
+        @media (max-width: 640px) {
+            #remote-control {
+                width: calc(100% - 20px);
+                max-width: 520px;
+                max-height: var(--panel-max-height, 58vh);
+                padding: 12px;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+                border-radius: 16px;
+            }
+
+            .column-header h1 { font-size: 10px; letter-spacing: 0.4px; line-height: 1.4; }
+            .header-meta { gap: 6px; font-size: 8px; }
+            .close-btn { width: 30px; height: 30px; font-size: 12px; }
+            .section-group { min-width: 0; gap: 7px; }
+            .section-group .slider-group label { font-size: 10px; line-height: 1.25; }
+            select, input[type="text"] { min-height: 38px; font-size: 13px; }
+            .btn { min-height: 42px; padding: 6px 4px; font-size: 10px; }
+            .extras { grid-column: 1 / -1; gap: 8px; }
+            .extras .slider-group { min-width: calc(50% - 6px); }
+            .extras #worker-url-group { flex: 1 1 100%; }
+            .extras .btn-group { min-width: 0; flex: 1 1 100%; flex-wrap: wrap; }
+            .extras .btn-group .btn { flex: 1 1 calc(33.333% - 8px); }
+            .meter { width: 20px; }
+            #rec-indicator { right: 12px; font-size: 10px; }
+            #hotkeys .card { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="webgl-error"></div>
+    <div id="rec-indicator">⏺ REC</div>
+    <div id="toast"></div>
+    <div id="canvas-container"></div>
+    <div id="hotkeys">
+        <div class="card">
+            <h2>HOTKEYS</h2>
+            <div><kbd>H</kbd><kbd>Esc</kbd> меню</div>
+            <div><kbd>Space</kbd> старт / пауза</div>
+            <div><kbd>R</kbd> запись</div>
+            <div><kbd>F</kbd> полный экран</div>
+            <div><kbd>S</kbd> скриншот PNG</div>
+            <div><kbd>M</kbd> микрофон</div>
+            <div><kbd>1</kbd>–<kbd>9</kbd><kbd>0</kbd><kbd>-</kbd><kbd>=</kbd> пресеты</div>
+            <div><kbd>←</kbd><kbd>→</kbd> пресет &nbsp; <kbd>↑</kbd><kbd>↓</kbd> FX</div>
+            <div><kbd>G</kbd> randomize &nbsp; <kbd>A</kbd> auto hue &nbsp; <kbd>L</kbd> loop</div>
+            <div><kbd>?</kbd> эта справка</div>
+        </div>
+    </div>
+
+    <input type="file" id="audio-upload" accept="audio/*">
+    <input type="file" id="image-upload" accept="image/*">
+
+    <div id="remote-control">
+        <div class="column-header">
+            <h1>GLOBAL VJ STUDIO // STABLE ENGINE v2</h1>
+            <div class="header-meta">
+                <span id="fps-label">60 FPS</span>
+                <div class="meters">
+                    <div class="meter" id="meter-bass"><i></i></div>
+                    <div class="meter" id="meter-mid"><i></i></div>
+                    <div class="meter" id="meter-treble"><i></i></div>
+                </div>
+            </div>
+            <button class="close-btn" id="close-btn" title="Скрыть меню">✕</button>
+        </div>
+
+        <div class="section-group">
+            <div class="slider-group">
+                <label>Фрактал (1-9, 0, -, =)</label>
+                <select id="preset-select">
+                    <option value="0">01. Neon Cyber Matrix</option>
+                    <option value="1">02. Liquid Plasma 4D</option>
+                    <option value="2">03. Deep Space Portal</option>
+                    <option value="3">04. Quantum Tesseract</option>
+                    <option value="4">05. Sacred Mandala</option>
+                    <option value="5">06. Neural Field</option>
+                    <option value="6">07. Cyber Vortex</option>
+                    <option value="7">08. Crystal Prism</option>
+                    <option value="8">09. Solar Flare</option>
+                    <option value="9">10. Bio-Organic Node</option>
+                    <option value="10">11. Synthwave Horizon</option>
+                    <option value="11">12. Digital Singularity</option>
+                    <option value="12">13. Kaleidoscope</option>
+                </select>
+            </div>
+            <div class="slider-group">
+                <label>Масштаб</label>
+                <input type="range" id="param-scale" min="0.3" max="3.0" step="0.05" value="1.2">
+            </div>
+            <div class="slider-group">
+                <label>Скорость 4D</label>
+                <input type="range" id="param-speed" min="0.1" max="2.0" step="0.1" value="0.8">
+            </div>
+            <div class="slider-group">
+                <label>Вращение</label>
+                <input type="range" id="param-rotate" min="0.0" max="6.28" step="0.01" value="0.0">
+            </div>
+        </div>
+
+        <div class="section-group">
+            <div class="slider-group">
+                <label>Бас (Low Gain)</label>
+                <input type="range" id="param-bass-gain" min="0.1" max="3.0" step="0.1" value="1.6">
+            </div>
+            <div class="slider-group">
+                <label>СЧ (Mid Gain)</label>
+                <input type="range" id="param-mid-gain" min="0.1" max="3.0" step="0.1" value="1.0">
+            </div>
+            <div class="slider-group">
+                <label>ВЧ (Treble Gain)</label>
+                <input type="range" id="param-treble-gain" min="0.1" max="3.0" step="0.1" value="1.2">
+            </div>
+            <div class="slider-group">
+                <label>Громкость трека</label>
+                <input type="range" id="param-volume" min="0.0" max="1.0" step="0.01" value="1.0">
+            </div>
+        </div>
+
+        <div class="section-group">
+            <div class="slider-group">
+                <label>Текстурный FX (13 Эффектов)</label>
+                <select id="fx-select">
+                    <option value="0">00. Чистый режим (Clean)</option>
+                    <option value="1">01. Matrix Digital Rain + Text</option>
+                    <option value="2">02. Sand Quantum Dust</option>
+                    <option value="3">03. CRT Scanlines</option>
+                    <option value="4">04. Glitch RGB Split</option>
+                    <option value="5">05. Digital Static Noise</option>
+                    <option value="6">06. Pixelation Mosaic</option>
+                    <option value="7">07. Neon Edge Glow</option>
+                    <option value="8">08. Wave Distortion</option>
+                    <option value="9">09. VHS Tracking Error</option>
+                    <option value="10">10. Hexagonal Cyber Grid</option>
+                    <option value="11">11. Strobe Flash Pulse</option>
+                    <option value="12">12. Hologram Flickering</option>
+                    <option value="13">13. Quantum Vapor</option>
+                </select>
+            </div>
+            <div class="slider-group">
+                <label>Текст для Матрицы</label>
+                <input type="text" id="matrix-text-input" value="SHIMON VIBE 4K" placeholder="Введите текст...">
+            </div>
+            <div class="slider-group">
+                <label>Интенсивность FX</label>
+                <input type="range" id="param-fx-intensity" min="0.0" max="2.0" step="0.05" value="0.5">
+            </div>
+            <div class="slider-group">
+                <label>Свечение текстуры</label>
+                <input type="range" id="param-tex-glow" min="0.0" max="3.0" step="0.05" value="0.5">
+            </div>
+        </div>
+
+        <div class="section-group">
+            <div class="slider-group">
+                <label>Сдвиг оттенка (Hue)</label>
+                <input type="range" id="param-hue" min="0.0" max="6.28" step="0.1" value="0.0">
+            </div>
+            <div class="btn-group">
+                <button class="btn" id="btn-audio">🎵 Трек</button>
+                <button class="btn" id="btn-image">🖼 Фото</button>
+                <button class="btn" id="btn-mic">🎙 Mic</button>
+            </div>
+            <div class="slider-group">
+                <label>Смешивание палитр</label>
+                <input type="range" id="param-gradient-mix" min="0.0" max="1.0" step="0.05" value="0.5">
+            </div>
+            <div class="slider-group">
+                <label>Экспозиция</label>
+                <input type="range" id="param-brightness" min="0.2" max="2.5" step="0.05" value="1.0">
+            </div>
+            <div class="btn-group">
+                <button class="btn" id="play-btn">▶ Старт</button>
+                <button class="btn danger" id="rec-btn">⏺ Запись</button>
+                <button class="btn" id="share-rec-btn" type="button" hidden>↗ Отправить боту</button>
+            </div>
+        </div>
+
+        <div class="extras">
+            <div class="slider-group">
+                <label>Качество записи</label>
+                <select id="rec-quality">
+                    <option value="2160@60">4K 60 FPS (Ultra)</option>
+                    <option value="2160@30">4K 30 FPS</option>
+                    <option value="1080@60" selected>1080p 60 FPS</option>
+                    <option value="1080@30">1080p 30 FPS</option>
+                    <option value="720@60">720p 60 FPS</option>
+                </select>
+            </div>
+            <div class="slider-group">
+                <label>Рендер</label>
+                <select id="render-quality">
+                    <option value="1">Performance (1x)</option>
+                    <option value="1.5" selected>Balanced (1.5x)</option>
+                    <option value="2">Ultra (2x)</option>
+                </select>
+            </div>
+            <div class="slider-group" id="worker-url-group">
+                <label for="worker-endpoint">Cloudflare Worker URL</label>
+                <input type="text" id="worker-endpoint" inputmode="url" autocomplete="off" value="https://vj-studio-telegram-upload.nikita-tkachen2002.workers.dev/api/send-video">
+            </div>
+            <div class="btn-group">
+                <button class="btn" id="btn-fs">⛶ Full</button>
+                <button class="btn" id="btn-shot">📷 PNG</button>
+                <button class="btn" id="btn-random">🎲 Rnd</button>
+                <button class="btn" id="btn-loop">🔁 Loop</button>
+                <button class="btn" id="btn-autohue">🌈 Hue</button>
+                <button class="btn" id="btn-help">? Keys</button>
+            </div>
+        </div>
+    </div>
+
+    <button id="show-menu-btn">⚙ ПУЛЬТ УПРАВЛЕНИЯ</button>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script id="vertex-shader" type="x-shader/x-vertex">
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        uniform float u_time;
+        uniform vec2 u_resolution;
+        uniform vec2 u_mouse;
+        uniform float u_bass, u_mid, u_treble;
+        uniform float u_bassGain, u_midGain, u_trebleGain;
+        uniform float u_scale, u_speed, u_tempo;
+        uniform float u_hue, u_gradientMix, u_texGlow, u_fxIntensity;
+        uniform float u_brightness, u_rotate;
+        uniform int u_preset;
+        uniform int u_fx;
+        uniform sampler2D u_texture;
+        uniform sampler2D u_matrixTexture;
+        uniform bool u_hasTexture;
+
+        mat2 rot(float a) {
+            float s = sin(a), c = cos(a);
+            return mat2(c, -s, s, c);
+        }
+
+        vec3 hueShift(vec3 color, float angle) {
+            const vec3 k = vec3(0.57735, 0.57735, 0.57735);
+            float cosAngle = cos(angle);
+            return color * cosAngle + cross(k, color) * sin(angle) + k * dot(k, color) * (1.0 - cosAngle);
+        }
+
+        vec3 palette(in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d) {
+            vec3 col = a + b * cos(6.28318 * (c * t + d));
+            return hueShift(col, u_hue);
+        }
+
+        float random(vec2 st) {
+            return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+        }
+
+        void main() {
+            vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / max(u_resolution.y, 1.0);
+            vec2 m = u_mouse - 0.5;
+            uv += m * 0.2;
+
+            float bEff = u_bass * u_bassGain;
+            float mEff = u_mid * u_midGain;
+            float tEff = u_treble * u_trebleGain;
+            float rhythmicTime = u_time * u_speed + u_tempo * 0.3 + bEff * 0.4;
+
+            vec3 col = vec3(0.02, 0.02, 0.05);
+            vec2 p = uv * (u_scale + bEff * 0.1);
+            p *= rot(u_rotate);
+
+            if (u_preset == 0) {
+                for (int i = 0; i < 5; i++) {
+                    p = abs(p) / clamp(dot(p, p), 0.05, 1.0) - vec2(0.7 + bEff * 0.3);
+                    p.xy *= rot(rhythmicTime * 0.15 + mEff * 0.2);
+                }
+                float d = max(length(p), 0.001);
+                col = palette(d + rhythmicTime * 0.1, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.0, 0.33, 0.67));
+                col *= (1.0 / (d * d * 3.0 + 0.1)) * (0.3 + tEff);
+            } else if (u_preset == 1) {
+                p.x += sin(p.y * 5.0 + rhythmicTime) * (0.2 + bEff * 0.5);
+                p.y += cos(p.x * 5.0 - rhythmicTime) * (0.2 + mEff * 0.5);
+                float wave = sin(p.x * 12.0 + rhythmicTime) * cos(p.y * 12.0 - rhythmicTime);
+                col = palette(wave + rhythmicTime * 0.2, vec3(0.8, 0.2, 0.5), vec3(0.2, 0.5, 0.8), vec3(1.0), vec3(0.0, 0.3, 0.7));
+                col *= (tEff + 0.5 + bEff * 0.5) * abs(p.x + p.y + 0.01);
+            } else if (u_preset == 2) {
+                float len = max(length(p), 0.001);
+                vec2 uvP = vec2(atan(p.y, p.x) * 1.5708, 0.3 / len - rhythmicTime * 0.8);
+                col = palette(uvP.y + bEff, vec3(0.5), vec3(0.5), vec3(2.0, 1.0, 0.0), vec3(0.5, 0.2, 0.25));
+                col *= (1.0 - smoothstep(0.0, 1.8, len)) * (1.0 + tEff * 1.5);
+            } else if (u_preset == 3) {
+                p.xy *= rot(rhythmicTime * 0.3);
+                vec2 q = abs(p) - (0.4 + bEff * 0.2);
+                float d = max(length(max(q, 0.0)) + min(max(q.x, q.y), 0.0), 0.001);
+                col = palette(d * 5.0 + rhythmicTime, vec3(0.2, 0.7, 0.9), vec3(0.3), vec3(1.0), vec3(0.0, 0.1, 0.2));
+                col += vec3(tEff * 0.6 + bEff * 0.5) / (d * 10.0 + 0.05);
+            } else if (u_preset == 4) {
+                float angle = atan(p.y, p.x);
+                float r = max(length(p), 0.001);
+                float f = cos(angle * 8.0 + rhythmicTime) * sin(r * 6.0 - rhythmicTime * 2.0) * (0.5 + bEff);
+                col = palette(f + r, vec3(0.5, 0.4, 0.6), vec3(0.5, 0.4, 0.4), vec3(2.0), vec3(0.0, 0.25, 0.25));
+                col /= abs(f + 0.2);
+            } else if (u_preset == 5) {
+                p *= rot(mEff + rhythmicTime * 0.1);
+                float n = sin(p.x * 10.0 + rhythmicTime) * cos(p.y * 10.0 - rhythmicTime) + sin(length(p) * 8.0 - rhythmicTime * 3.0);
+                col = palette(n + bEff, vec3(0.3, 0.2, 0.8), vec3(0.5), vec3(1.0), vec3(0.0, 0.33, 0.67));
+                col *= abs(n) * (tEff + 0.5);
+            } else if (u_preset == 6) {
+                p.xy *= rot(length(p) * 2.0 - rhythmicTime);
+                vec2 q = fract(p * 4.0) - 0.5;
+                float d = length(q);
+                col = palette(d + bEff, vec3(0.9, 0.1, 0.3), vec3(0.1, 0.9, 0.3), vec3(1.0), vec3(0.2, 0.5, 0.7));
+                col *= (1.0 - smoothstep(0.1, 0.5, d)) * (1.0 + tEff);
+            } else if (u_preset == 7) {
+                vec2 g = fract(p * 3.0 + rhythmicTime * 0.2) - 0.5;
+                float d = length(g) * max(length(p), 0.001);
+                col = palette(d * 10.0 + mEff, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.0, 0.33, 0.67));
+                col += vec3(tEff, bEff, 0.5) / (d * 20.0 + 0.1);
+            } else if (u_preset == 8) {
+                float r = max(length(p), 0.001);
+                float a = atan(p.y, p.x);
+                float wave = sin(a * 6.0 + rhythmicTime * 3.0 + bEff * 3.0) * 0.3;
+                col = palette(r - wave, vec3(1.0, 0.5, 0.0), vec3(0.5, 0.2, 0.1), vec3(1.0), vec3(0.1, 0.2, 0.3));
+                col /= (r + wave + 0.2);
+            } else if (u_preset == 9) {
+                for (int i = 0; i < 3; i++) {
+                    float d2 = max(dot(p, p), 0.01);
+                    p = abs(p) / d2 - (0.8 + bEff * 0.2);
+                    p.xy *= rot(rhythmicTime * 0.2);
+                }
+                col = palette(length(p) + rhythmicTime, vec3(0.1, 0.8, 0.4), vec3(0.4, 0.2, 0.6), vec3(1.0), vec3(0.1, 0.2, 0.4));
+                col *= (tEff + 0.4);
+            } else if (u_preset == 10) {
+                vec2 gp = p;
+                gp.y = abs(gp.y) - 0.2;
+                float grid = sin(gp.x * 20.0) * sin(1.0 / (abs(gp.y) + 0.01) + rhythmicTime * 2.0);
+                col = palette(grid + bEff, vec3(0.9, 0.1, 0.6), vec3(0.1, 0.5, 0.9), vec3(1.0), vec3(0.3, 0.2, 0.1));
+                col *= smoothstep(-0.5, 0.5, p.y);
+            } else if (u_preset == 11) {
+                p.xy *= rot(rhythmicTime * 0.5);
+                float r = max(length(p), 0.001);
+                col = palette(r * 5.0 - rhythmicTime * 2.0 + mEff, vec3(0.7, 0.2, 0.9), vec3(0.3, 0.8, 0.2), vec3(1.0), vec3(0.0, 0.5, 1.0));
+                col *= (1.0 / (r * 3.0 + 0.1)) * (bEff + 0.4);
+            } else {
+                vec2 kp = p;
+                for (int i = 0; i < 4; i++) {
+                    kp = abs(kp) - 0.3;
+                    kp.xy *= rot(0.785 + rhythmicTime * 0.1);
+                }
+                col = palette(length(kp) + rhythmicTime, vec3(0.4, 0.6, 0.9), vec3(0.6, 0.4, 0.2), vec3(1.0), vec3(0.2, 0.4, 0.6));
+                col *= (tEff + bEff + 0.5);
+            }
+
+            vec3 secondCol = palette(p.x * p.y + rhythmicTime * 0.5, vec3(0.2, 0.8, 0.5), vec3(0.8, 0.2, 0.5), vec3(1.0), vec3(0.5));
+            col = mix(col, secondCol, u_gradientMix);
+
+            if (u_hasTexture) {
+                vec2 texUV = fract(p * 0.5 + 0.5 + vec2(bEff * 0.15));
+                vec4 texColor = texture2D(u_texture, texUV);
+                vec3 finalTex = texColor.rgb * (1.0 + tEff * u_texGlow * 2.0);
+                col = mix(col, finalTex, clamp(0.6 + bEff * 0.2, 0.0, 0.92));
+            }
+
+            if (u_fx == 1) {
+                vec4 matrixTex = texture2D(u_matrixTexture, gl_FragCoord.xy / max(u_resolution.xy, vec2(1.0)));
+                col = mix(col, matrixTex.rgb * (1.0 + bEff), matrixTex.a * u_fxIntensity);
+            } else if (u_fx == 2) {
+                float dust = random(gl_FragCoord.xy + vec2(rhythmicTime)) * u_fxIntensity * 0.4 * (1.0 + bEff);
+                col += vec3(dust);
+            } else if (u_fx == 3) {
+                float scanline = sin(gl_FragCoord.y * 1.5708) * 0.15 * u_fxIntensity;
+                col -= vec3(scanline);
+            } else if (u_fx == 4) {
+                float shift = (u_fxIntensity + bEff * 0.4) * 0.012;
+                col.r += palette(uv.x + shift, vec3(1.0), vec3(0.5), vec3(1.0), vec3(0.0)).r * 0.25;
+                col.b += palette(uv.x - shift, vec3(1.0), vec3(0.5), vec3(1.0), vec3(0.0)).b * 0.25;
+            } else if (u_fx == 5) {
+                float noise = (random(gl_FragCoord.xy * max(rhythmicTime, 0.001)) - 0.5) * u_fxIntensity * 0.5;
+                col += vec3(noise);
+            } else if (u_fx == 6) {
+                float cell = 10.0 + u_fxIntensity * 20.0;
+                vec2 grid = floor(gl_FragCoord.xy / cell) * cell;
+                col += (random(grid) - 0.5) * 0.12;
+            } else if (u_fx == 7) {
+                float edge = max(length(uv), 0.001);
+                col += vec3(0.2, 0.6, 1.0) * (1.0 - edge) * u_fxIntensity * (1.0 + bEff);
+            } else if (u_fx == 8) {
+                col += sin(uv.xyx * 20.0 + rhythmicTime * 5.0) * 0.08 * u_fxIntensity * (1.0 + bEff);
+            } else if (u_fx == 9) {
+                float bar = step(0.94, sin(gl_FragCoord.y * 0.05 + rhythmicTime * 10.0));
+                col = mix(col, vec3(1.0), bar * u_fxIntensity * 0.5);
+            } else if (u_fx == 10) {
+                float hex = sin(p.x * 20.0 + rhythmicTime) * cos(p.y * 20.0 - rhythmicTime);
+                col += vec3(0.0, hex * 0.3 * u_fxIntensity, hex * 0.6 * u_fxIntensity);
+            } else if (u_fx == 11) {
+                float strobe = step(0.82, fract(rhythmicTime * 3.0)) * u_fxIntensity * (bEff + 0.1);
+                col += vec3(strobe);
+            } else if (u_fx == 12) {
+                float flick = (sin(rhythmicTime * 50.0) * 0.12 + 0.88) * mix(1.0, u_fxIntensity, 0.65);
+                col *= vec3(0.8, 1.0, 1.2) * flick;
+            } else if (u_fx == 13) {
+                float vapor = cos(uv.y * 30.0 - rhythmicTime * 3.0) * 0.2 * u_fxIntensity;
+                col.rg += vec2(vapor + bEff * 0.15);
+            }
+
+            col *= u_brightness;
+            float vig = 1.0 - dot(uv, uv) * 0.28;
+            col *= vig;
+            col = max(col, 0.0);
+            col = col / (1.0 + col * 0.35);
+            col = clamp(col, 0.0, 1.0);
+            gl_FragColor = vec4(col, 1.0);
+        }
+    </script>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var telegram = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        var root = document.documentElement;
+
+        function telegramSupports(version) {
+            return !!(telegram && typeof telegram.isVersionAtLeast === 'function' && telegram.isVersionAtLeast(version));
+        }
+
+        function getViewportSize() {
+            var visualViewport = window.visualViewport;
+            return {
+                width: Math.max(1, Math.round(visualViewport ? visualViewport.width : (telegram && telegram.viewportWidth || window.innerWidth))),
+                height: Math.max(1, Math.round(visualViewport ? visualViewport.height : (telegram && telegram.viewportHeight || window.innerHeight)))
+            };
+        }
+
+        function syncTelegramLayout() {
+            if (!telegram) return;
+            var height = telegram.viewportStableHeight || telegram.viewportHeight || window.innerHeight;
+            root.style.setProperty('--app-height', Math.round(height) + 'px');
+            root.style.setProperty('--panel-max-height', Math.max(220, Math.round(height * 0.58)) + 'px');
+
+            var safe = telegram.safeAreaInset || {};
+            var contentSafe = telegram.contentSafeAreaInset || {};
+            if (telegram.safeAreaInset || telegram.contentSafeAreaInset) {
+                root.style.setProperty('--app-safe-top', Math.max(safe.top || 0, contentSafe.top || 0) + 'px');
+                root.style.setProperty('--app-safe-bottom', Math.max(safe.bottom || 0, contentSafe.bottom || 0) + 'px');
+            }
+        }
+
+        if (telegram) {
+            if (typeof telegram.ready === 'function') telegram.ready();
+            if (typeof telegram.expand === 'function') telegram.expand();
+            if (telegramSupports('7.7') && typeof telegram.disableVerticalSwipes === 'function') telegram.disableVerticalSwipes();
+            if (telegramSupports('6.1') && typeof telegram.setBackgroundColor === 'function') telegram.setBackgroundColor('#000000');
+            if (telegramSupports('6.1') && typeof telegram.setHeaderColor === 'function') telegram.setHeaderColor('#000000');
+            syncTelegramLayout();
+        }
+
+        if (typeof THREE === 'undefined') {
+            var errBox = document.getElementById('webgl-error');
+            errBox.style.display = 'block';
+            errBox.textContent = 'Не удалось загрузить Three.js. Проверьте сеть / CDN.';
+            return;
+        }
+
+        var STORAGE_KEY = 'vj-studio-pro-v2';
+        var PRESET_COUNT = 13;
+        var FX_COUNT = 14;
+
+        var matrixCanvas = document.createElement('canvas');
+        var mCtx = matrixCanvas.getContext('2d', { alpha: true });
+        matrixCanvas.width = 1920;
+        matrixCanvas.height = 1080;
+        var fontSize = 18;
+        var columns = Math.floor(matrixCanvas.width / fontSize);
+        var drops = new Array(columns);
+        for (var i = 0; i < columns; i++) drops[i] = Math.random() * 40;
+
+        function drawMatrixRain(customText) {
+            mCtx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+            mCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+            mCtx.font = 'bold ' + fontSize + 'px monospace';
+            var chars = customText && customText.length ? customText : 'SHIMONVIBE4K';
+            for (var c = 0; c < drops.length; c++) {
+                var ch = chars.charAt((Math.random() * chars.length) | 0);
+                var x = c * fontSize;
+                var y = drops[c] * fontSize;
+                mCtx.fillStyle = '#ffffff';
+                mCtx.fillText(ch, x, y);
+                mCtx.fillStyle = '#00ff44';
+                mCtx.fillText(chars.charAt((Math.random() * chars.length) | 0), x, y - fontSize);
+                if (y > matrixCanvas.height && Math.random() > 0.975) drops[c] = 0;
+                drops[c]++;
+            }
+        }
+
+        var container = document.getElementById('canvas-container');
+        var renderer;
+        try {
+            renderer = new THREE.WebGLRenderer({
+                antialias: false,
+                preserveDrawingBuffer: true,
+                powerPreference: 'high-performance',
+                alpha: false,
+                stencil: false,
+                depth: false
+            });
+        } catch (e) {
+            var box = document.getElementById('webgl-error');
+            box.style.display = 'block';
+            box.textContent = 'WebGL недоступен: ' + e.message;
+            return;
+        }
+
+        var pixelCap = parseFloat(document.getElementById('render-quality').value) || 1.5;
+        var initialViewport = getViewportSize();
+        var initialPixelRatio = Math.min(window.devicePixelRatio || 1, pixelCap);
+        renderer.setPixelRatio(initialPixelRatio);
+        renderer.setSize(initialViewport.width, initialViewport.height);
+        renderer.autoClear = true;
+        container.appendChild(renderer.domElement);
+
+        renderer.domElement.addEventListener('webglcontextlost', function (e) {
+            e.preventDefault();
+            toast('WebGL context lost — подождите восстановления');
+        });
+        renderer.domElement.addEventListener('webglcontextrestored', function () {
+            toast('WebGL восстановлен');
+            applyRenderSize();
+        });
+
+        var scene = new THREE.Scene();
+        var camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        var geometry = new THREE.PlaneGeometry(2, 2);
+
+        var matrixTexture = new THREE.CanvasTexture(matrixCanvas);
+        matrixTexture.wrapS = THREE.RepeatWrapping;
+        matrixTexture.wrapT = THREE.RepeatWrapping;
+        matrixTexture.minFilter = THREE.LinearFilter;
+        matrixTexture.magFilter = THREE.LinearFilter;
+        matrixTexture.generateMipmaps = false;
+
+        var uniforms = {
+            u_time: { value: 0.0 },
+            u_resolution: { value: new THREE.Vector2(initialViewport.width * initialPixelRatio, initialViewport.height * initialPixelRatio) },
+            u_mouse: { value: new THREE.Vector2(0.5, 0.5) },
+            u_bass: { value: 0.0 },
+            u_mid: { value: 0.0 },
+            u_treble: { value: 0.0 },
+            u_bassGain: { value: 1.6 },
+            u_midGain: { value: 1.0 },
+            u_trebleGain: { value: 1.2 },
+            u_scale: { value: 1.2 },
+            u_speed: { value: 0.8 },
+            u_tempo: { value: 0.0 },
+            u_hue: { value: 0.0 },
+            u_gradientMix: { value: 0.5 },
+            u_texGlow: { value: 0.5 },
+            u_fxIntensity: { value: 0.5 },
+            u_brightness: { value: 1.0 },
+            u_rotate: { value: 0.0 },
+            u_preset: { value: 0 },
+            u_fx: { value: 0 },
+            u_texture: { value: null },
+            u_matrixTexture: { value: matrixTexture },
+            u_hasTexture: { value: false }
+        };
+
+        var material = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById('vertex-shader').textContent,
+            fragmentShader: document.getElementById('fragment-shader').textContent,
+            uniforms: uniforms,
+            depthTest: false,
+            depthWrite: false
+        });
+        scene.add(new THREE.Mesh(geometry, material));
+
+        var mouse = { x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5 };
+        var remoteControl = document.getElementById('remote-control');
+        var showMenuBtn = document.getElementById('show-menu-btn');
+        var hotkeys = document.getElementById('hotkeys');
+        var recIndicator = document.getElementById('rec-indicator');
+        var toastEl = document.getElementById('toast');
+        var toastTimer = 0;
+        var menuRevealTimer = 0;
+
+        function toast(msg) {
+            toastEl.textContent = msg;
+            toastEl.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2800);
+        }
+
+        function haptic(type) {
+            var feedback = telegram && telegram.HapticFeedback;
+            if (!telegramSupports('6.1') || !feedback) return;
+            try {
+                if (type === 'selection' && typeof feedback.selectionChanged === 'function') feedback.selectionChanged();
+                else if (typeof feedback.impactOccurred === 'function') feedback.impactOccurred(type || 'light');
+            } catch (e) {
+            }
+        }
+
+        function syncTelegramBackButton() {
+            var backButton = telegram && telegram.BackButton;
+            if (!telegramSupports('6.1') || !backButton) return;
+            var shouldShow = hotkeys.classList.contains('open') || remoteControl.classList.contains('hidden');
+            if (shouldShow && typeof backButton.show === 'function') backButton.show();
+            else if (!shouldShow && typeof backButton.hide === 'function') backButton.hide();
+        }
+
+        function handleTelegramBack() {
+            if (hotkeys.classList.contains('open')) hotkeys.classList.remove('open');
+            else if (remoteControl.classList.contains('hidden')) toggleMenu();
+            syncTelegramBackButton();
+        }
+
+        if (telegramSupports('6.1') && telegram.BackButton && typeof telegram.BackButton.onClick === 'function') {
+            telegram.BackButton.onClick(handleTelegramBack);
+        }
+
+        function toggleMenu() {
+            remoteControl.classList.toggle('hidden');
+            if (!remoteControl.classList.contains('hidden')) {
+                hideShowMenuButton();
+            } else {
+                revealShowMenuButton();
+            }
+            syncTelegramBackButton();
+            haptic('light');
+        }
+        window.toggleMenu = toggleMenu;
+
+        function hideShowMenuButton() {
+            clearTimeout(menuRevealTimer);
+            showMenuBtn.style.opacity = '0';
+            showMenuBtn.style.pointerEvents = 'none';
+            showMenuBtn.style.transform = 'translateX(-50%) translateY(20px)';
+        }
+
+        function revealShowMenuButton() {
+            if (!remoteControl.classList.contains('hidden')) return;
+            clearTimeout(menuRevealTimer);
+            showMenuBtn.style.opacity = '1';
+            showMenuBtn.style.pointerEvents = 'auto';
+            showMenuBtn.style.transform = 'translateX(-50%) translateY(0)';
+            menuRevealTimer = setTimeout(hideShowMenuButton, 2600);
+        }
+
+        window.addEventListener('pointermove', function (e) {
+            var viewport = getViewportSize();
+            mouse.targetX = e.clientX / viewport.width;
+            mouse.targetY = 1.0 - (e.clientY / viewport.height);
+            if (e.clientY > viewport.height - 90) revealShowMenuButton();
+        });
+
+        window.addEventListener('pointerdown', function () {
+            if (remoteControl.classList.contains('hidden')) revealShowMenuButton();
+        }, { passive: true });
+
+        window.addEventListener('touchmove', function (e) {
+            if (!e.touches[0]) return;
+            var viewport = getViewportSize();
+            mouse.targetX = e.touches[0].clientX / viewport.width;
+            mouse.targetY = 1.0 - (e.touches[0].clientY / viewport.height);
+        }, { passive: true });
+
+        var audioCtx = null, analyser = null, dataArray = null;
+        var mediaElementSource = null, trackGain = null, micGain = null, recDest = null;
+        var micSource = null, micStream = null, micOn = false;
+        var audioElement = new Audio();
+        audioElement.crossOrigin = 'anonymous';
+        audioElement.preload = 'auto';
+        audioElement.loop = true;
+        var audioObjectUrl = null;
+        var imageObjectUrl = null;
+        var audioData = { bass: 0, mid: 0, treble: 0 };
+        var tempoFactor = 0.0;
+        var lastBass = 0;
+        var hasAudioSignal = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 1024;
+                analyser.smoothingTimeConstant = 0.72;
+                analyser.minDecibels = -85;
+                analyser.maxDecibels = -20;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                trackGain = audioCtx.createGain();
+                micGain = audioCtx.createGain();
+                recDest = audioCtx.createMediaStreamDestination();
+                trackGain.gain.value = parseFloat(document.getElementById('param-volume').value);
+                micGain.gain.value = 1.0;
+                trackGain.connect(analyser);
+                trackGain.connect(audioCtx.destination);
+                trackGain.connect(recDest);
+                micGain.connect(analyser);
+                micGain.connect(recDest);
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function ensureMediaElementSource() {
+            initAudio();
+            if (!mediaElementSource) {
+                mediaElementSource = audioCtx.createMediaElementSource(audioElement);
+                mediaElementSource.connect(trackGain);
+            }
+        }
+
+        function updateAudioData() {
+            if (!analyser) return;
+            analyser.getByteFrequencyData(dataArray);
+            var b = 0, m = 0, t = 0, n = dataArray.length;
+            var i;
+            var lowEnd = Math.min(16, n);
+            var midEnd = Math.min(96, n);
+            for (i = 0; i < lowEnd; i++) b += dataArray[i];
+            for (i = lowEnd; i < midEnd; i++) m += dataArray[i];
+            for (i = midEnd; i < n; i++) t += dataArray[i];
+            var rawBass = b / Math.max(lowEnd, 1) / 255;
+            var rawMid = m / Math.max(midEnd - lowEnd, 1) / 255;
+            var rawTreble = t / Math.max(n - midEnd, 1) / 255;
+            audioData.bass += (rawBass - audioData.bass) * 0.32;
+            audioData.mid += (rawMid - audioData.mid) * 0.32;
+            audioData.treble += (rawTreble - audioData.treble) * 0.32;
+            var bassDelta = rawBass - lastBass;
+            if (bassDelta > 0.07) tempoFactor += 2.0;
+            tempoFactor *= 0.9;
+            lastBass = rawBass;
+            hasAudioSignal = rawBass + rawMid + rawTreble > 0.02;
+        }
+
+        function loadAudio(file) {
+            if (!file) return;
+            ensureMediaElementSource();
+            if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+            audioObjectUrl = URL.createObjectURL(file);
+            audioElement.src = audioObjectUrl;
+            audioElement.play().then(function () {
+                setPlayingUI(true);
+                toast('Трек: ' + file.name);
+            }).catch(function (err) {
+                toast('Автовоспроизведение: кликните Старт (' + err.message + ')');
+                setPlayingUI(false);
+            });
+        }
+
+        function loadImage(file) {
+            if (!file) return;
+            if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
+            imageObjectUrl = URL.createObjectURL(file);
+            var loader = new THREE.TextureLoader();
+            loader.load(imageObjectUrl, function (texture) {
+                if (uniforms.u_texture.value) uniforms.u_texture.value.dispose();
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.minFilter = THREE.LinearFilter;
+                texture.generateMipmaps = false;
+                uniforms.u_texture.value = texture;
+                uniforms.u_hasTexture.value = true;
+                toast('Текстура загружена');
+            }, undefined, function () {
+                toast('Не удалось загрузить изображение');
+            });
+        }
+
+        function setPlayingUI(playing) {
+            var btn = document.getElementById('play-btn');
+            if (playing) {
+                btn.classList.add('active');
+                btn.textContent = '⏸ Пауза';
+            } else {
+                btn.classList.remove('active');
+                btn.textContent = '▶ Старт';
+            }
+        }
+
+        function togglePlay() {
+            if (!audioElement.src) {
+                toast('Загрузите трек или включите микрофон');
+                return;
+            }
+            initAudio();
+            if (audioElement.paused) {
+                audioElement.play().then(function () { setPlayingUI(true); }).catch(function (e) { toast(e.message); });
+            } else {
+                audioElement.pause();
+                setPlayingUI(false);
+            }
+        }
+
+        async function toggleMic() {
+            initAudio();
+            var btn = document.getElementById('btn-mic');
+            if (micOn) {
+                if (micStream) micStream.getTracks().forEach(function (t) { t.stop(); });
+                if (micSource) try { micSource.disconnect(); } catch (e) {}
+                micSource = null; micStream = null; micOn = false;
+                btn.classList.remove('active');
+                toast('Микрофон выключен');
+                return;
+            }
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                micSource = audioCtx.createMediaStreamSource(micStream);
+                micSource.connect(micGain);
+                micOn = true;
+                btn.classList.add('active');
+                toast('Микрофон: визуалы без мониторинга');
+            } catch (e) {
+                toast('Нет доступа к микрофону: ' + e.message);
+            }
+        }
+
+        function bind(id, evt, fn) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener(evt, fn);
+        }
+
+        function bindRange(id, uniformKey, parser) {
+            parser = parser || parseFloat;
+            var el = document.getElementById(id);
+            if (!el) return;
+            var apply = function () { uniforms[uniformKey].value = parser(el.value); persistSoon(); };
+            el.addEventListener('input', apply);
+            el.addEventListener('change', apply);
+        }
+
+        bindRange('param-scale', 'u_scale');
+        bindRange('param-speed', 'u_speed');
+        bindRange('param-bass-gain', 'u_bassGain');
+        bindRange('param-mid-gain', 'u_midGain');
+        bindRange('param-treble-gain', 'u_trebleGain');
+        bindRange('param-hue', 'u_hue');
+        bindRange('param-gradient-mix', 'u_gradientMix');
+        bindRange('param-tex-glow', 'u_texGlow');
+        bindRange('param-fx-intensity', 'u_fxIntensity');
+        bindRange('param-brightness', 'u_brightness');
+        bindRange('param-rotate', 'u_rotate');
+
+        bind('preset-select', 'change', function (e) {
+            uniforms.u_preset.value = parseInt(e.target.value, 10);
+            persistSoon();
+        });
+        bind('fx-select', 'change', function (e) {
+            uniforms.u_fx.value = parseInt(e.target.value, 10);
+            persistSoon();
+        });
+        bind('param-volume', 'input', function (e) {
+            if (trackGain) trackGain.gain.value = parseFloat(e.target.value);
+            persistSoon();
+        });
+        bind('render-quality', 'change', function () {
+            if (!isRecording) applyRenderSize();
+            persistSoon();
+        });
+        bind('matrix-text-input', 'input', persistSoon);
+        bind('worker-endpoint', 'input', persistSoon);
+
+        bind('close-btn', 'click', toggleMenu);
+        bind('show-menu-btn', 'click', toggleMenu);
+        bind('btn-audio', 'click', function () { document.getElementById('audio-upload').click(); });
+        bind('btn-image', 'click', function () { document.getElementById('image-upload').click(); });
+        bind('audio-upload', 'change', function (e) { if (e.target.files[0]) loadAudio(e.target.files[0]); });
+        bind('image-upload', 'change', function (e) { if (e.target.files[0]) loadImage(e.target.files[0]); });
+        bind('play-btn', 'click', togglePlay);
+        bind('btn-mic', 'click', function () { toggleMic(); });
+        bind('btn-fs', 'click', toggleFullscreen);
+        bind('btn-shot', 'click', takeScreenshot);
+        bind('btn-random', 'click', randomize);
+        bind('btn-help', 'click', function () {
+            hotkeys.classList.toggle('open');
+            syncTelegramBackButton();
+        });
+        bind('hotkeys', 'click', function (e) {
+            if (e.target.id === 'hotkeys') {
+                e.currentTarget.classList.remove('open');
+                syncTelegramBackButton();
+            }
+        });
+
+        bind('btn-loop', 'click', function () {
+            audioElement.loop = !audioElement.loop;
+            document.getElementById('btn-loop').classList.toggle('active', audioElement.loop);
+            toast(audioElement.loop ? 'Loop ON' : 'Loop OFF');
+            persistSoon();
+        });
+        document.getElementById('btn-loop').classList.add('active');
+
+        var autoHue = false;
+        bind('btn-autohue', 'click', function () {
+            autoHue = !autoHue;
+            document.getElementById('btn-autohue').classList.toggle('active', autoHue);
+            toast(autoHue ? 'Auto Hue ON' : 'Auto Hue OFF');
+        });
+
+        audioElement.addEventListener('ended', function () {
+            if (!audioElement.loop) setPlayingUI(false);
+        });
+        audioElement.addEventListener('error', function () { toast('Ошибка декодирования аудио'); });
+
+        window.addEventListener('dragover', function (e) { e.preventDefault(); });
+        window.addEventListener('drop', function (e) {
+            e.preventDefault();
+            var file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (!file) return;
+            if (file.type.indexOf('audio') === 0) loadAudio(file);
+            else if (file.type.indexOf('image') === 0) loadImage(file);
+            else toast('Нужен audio/* или image/*');
+        });
+
+        function setPreset(idx) {
+            idx = ((idx % PRESET_COUNT) + PRESET_COUNT) % PRESET_COUNT;
+            document.getElementById('preset-select').value = String(idx);
+            uniforms.u_preset.value = idx;
+            haptic('selection');
+            persistSoon();
+        }
+        function setFx(idx) {
+            idx = ((idx % FX_COUNT) + FX_COUNT) % FX_COUNT;
+            document.getElementById('fx-select').value = String(idx);
+            uniforms.u_fx.value = idx;
+            haptic('selection');
+            persistSoon();
+        }
+
+        function randomize() {
+            setPreset((Math.random() * PRESET_COUNT) | 0);
+            setFx((Math.random() * FX_COUNT) | 0);
+            var map = {
+                'param-scale': [0.6, 2.2],
+                'param-speed': [0.4, 1.6],
+                'param-hue': [0, 6.28],
+                'param-gradient-mix': [0.15, 0.85],
+                'param-fx-intensity': [0.25, 1.2],
+                'param-rotate': [0, 6.28]
+            };
+            Object.keys(map).forEach(function (id) {
+                var r = map[id];
+                var v = r[0] + Math.random() * (r[1] - r[0]);
+                var el = document.getElementById(id);
+                el.value = v.toFixed(2);
+                el.dispatchEvent(new Event('input'));
+            });
+            toast('Randomize');
+        }
+
+        function toggleFullscreen() {
+            if (telegramSupports('8.0') && typeof telegram.requestFullscreen === 'function') {
+                try {
+                    if (telegram.isFullscreen && typeof telegram.exitFullscreen === 'function') {
+                        telegram.exitFullscreen();
+                    } else {
+                        telegram.requestFullscreen();
+                    }
+                } catch (e) {
+                    toast('Полноэкранный режим недоступен: ' + e.message);
+                }
+                return;
+            }
+            if (!document.fullscreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen().catch(function (e) { toast(e.message); });
+                } else {
+                    toast('Полноэкранный режим не поддерживается');
+                }
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function takeScreenshot() {
+            renderer.render(scene, camera);
+            var a = document.createElement('a');
+            a.href = renderer.domElement.toDataURL('image/png');
+            a.download = 'VJ_Studio_' + Date.now() + '.png';
+            a.click();
+            toast('Скриншот PNG');
+        }
+
+        window.addEventListener('keydown', function (e) {
+            if (e.target.matches('input, textarea, select')) return;
+            var k = e.key;
+            if (k === 'h' || k === 'H' || k === 'Escape') { toggleMenu(); return; }
+            if (k === ' ') { e.preventDefault(); togglePlay(); return; }
+            if (k === 'r' || k === 'R') { e.preventDefault(); toggleRecord(); return; }
+            if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
+            if (k === 's' || k === 'S') { takeScreenshot(); return; }
+            if (k === 'm' || k === 'M') { toggleMic(); return; }
+            if (k === 'g' || k === 'G') { randomize(); return; }
+            if (k === 'a' || k === 'A') { document.getElementById('btn-autohue').click(); return; }
+            if (k === 'l' || k === 'L') { document.getElementById('btn-loop').click(); return; }
+            if (k === '?' || k === '/') { document.getElementById('hotkeys').classList.toggle('open'); return; }
+            if (k >= '1' && k <= '9') { setPreset(parseInt(k, 10) - 1); return; }
+            if (k === '0') { setPreset(9); return; }
+            if (k === '-') { setPreset(10); return; }
+            if (k === '=' || k === '+') { setPreset(11); return; }
+            if (k === 'ArrowLeft') { setPreset(uniforms.u_preset.value - 1); return; }
+            if (k === 'ArrowRight') { setPreset(uniforms.u_preset.value + 1); return; }
+            if (k === 'ArrowUp') { setFx(uniforms.u_fx.value + 1); return; }
+            if (k === 'ArrowDown') { setFx(uniforms.u_fx.value - 1); return; }
+        });
+
+        var mediaRecorder = null, recordedChunks = [], isRecording = false;
+        var recStartedAt = 0, recTimer = 0;
+        var recRestore = { w: 0, h: 0, pr: 1 };
+        var lastRecording = null;
+
+        function pickMime() {
+            var types = [
+                'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp9',
+                'video/webm;codecs=vp8,opus',
+                'video/webm;codecs=vp8',
+                'video/webm',
+                'video/mp4'
+            ];
+            if (typeof MediaRecorder === 'undefined') return '';
+            for (var t = 0; t < types.length; t++) {
+                if (MediaRecorder.isTypeSupported(types[t])) return types[t];
+            }
+            return '';
+        }
+
+        function parseQuality() {
+            var raw = document.getElementById('rec-quality').value || '1080@60';
+            var parts = raw.split('@');
+            var h = parseInt(parts[0], 10);
+            var fps = parseInt(parts[1], 10) || 60;
+            var map = { 2160: [3840, 2160], 1080: [1920, 1080], 720: [1280, 720] };
+            var wh = map[h] || [1920, 1080];
+            return { w: wh[0], h: wh[1], fps: fps };
+        }
+
+        function applyRenderSize(forceW, forceH, forcePr) {
+            var pr = forcePr != null ? forcePr : Math.min(window.devicePixelRatio || 1, parseFloat(document.getElementById('render-quality').value) || 1.5);
+            var viewport = getViewportSize();
+            var w = forceW || viewport.width;
+            var h = forceH || viewport.height;
+            renderer.setPixelRatio(pr);
+            renderer.setSize(w, h, forceW == null);
+            var bufW = Math.floor(w * pr);
+            var bufH = Math.floor(h * pr);
+            uniforms.u_resolution.value.set(bufW, bufH);
+        }
+
+        function formatRecTime(ms) {
+            var s = Math.floor(ms / 1000);
+            var m = Math.floor(s / 60);
+            s = s % 60;
+            return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        function stopRecord() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                try { mediaRecorder.stop(); } catch (e) {}
+            }
+        }
+
+        function toggleRecord() {
+            if (isRecording) { stopRecord(); return; }
+            if (typeof MediaRecorder === 'undefined') {
+                toast('MediaRecorder не поддерживается');
+                return;
+            }
+
+            lastRecording = null;
+            document.getElementById('share-rec-btn').hidden = true;
+
+            var q = parseQuality();
+            var attempts = [
+                { w: q.w, h: q.h, fps: q.fps },
+                { w: 1920, h: 1080, fps: Math.min(q.fps, 60) },
+                { w: 1280, h: 720, fps: 30 }
+            ];
+
+            var viewport = getViewportSize();
+            recRestore.w = viewport.width;
+            recRestore.h = viewport.height;
+            recRestore.pr = renderer.getPixelRatio();
+
+            var mime = pickMime();
+            var started = false;
+            var lastErr = '';
+
+            for (var a = 0; a < attempts.length && !started; a++) {
+                var mode = attempts[a];
+                try {
+                    applyRenderSize(mode.w, mode.h, 1);
+                    renderer.render(scene, camera);
+                    var canvasStream = renderer.domElement.captureStream(mode.fps);
+                    var mixed = canvasStream;
+                    if (recDest) {
+                        mixed = new MediaStream(canvasStream.getVideoTracks().concat(recDest.stream.getAudioTracks()));
+                    }
+                    var opts = { videoBitsPerSecond: mode.w >= 3840 ? 28000000 : mode.w >= 1920 ? 14000000 : 8000000 };
+                    if (mime) opts.mimeType = mime;
+                    if (recDest && recDest.stream.getAudioTracks().length) opts.audioBitsPerSecond = 192000;
+                    mediaRecorder = new MediaRecorder(mixed, opts);
+                    recordedChunks = [];
+                    mediaRecorder.ondataavailable = function (e) {
+                        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+                    };
+                    mediaRecorder.onerror = function (ev) {
+                        toast('Ошибка записи: ' + (ev.error && ev.error.message || 'unknown'));
+                    };
+                    mediaRecorder.onstop = function () {
+                        isRecording = false;
+                        recIndicator.style.display = 'none';
+                        clearInterval(recTimer);
+                        document.getElementById('rec-btn').textContent = '⏺ Запись';
+                        document.getElementById('rec-btn').classList.remove('active');
+                        applyRenderSize();
+                        canvasStream.getTracks().forEach(function (track) { track.stop(); });
+                        if (!recordedChunks.length) {
+                            toast('Пустая запись — кодек/ holster canvas не отдал кадры');
+                            return;
+                        }
+                        var type = (mediaRecorder && mediaRecorder.mimeType) || 'video/webm';
+                        var blob = new Blob(recordedChunks, { type: type });
+                        var ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+                        var fileName = 'VJ_Studio_' + mode.w + 'x' + mode.h + '_' + Date.now() + '.' + ext;
+                        lastRecording = typeof File === 'function' ? new File([blob], fileName, { type: type }) : blob;
+                        var url = URL.createObjectURL(blob);
+                        var link = document.createElement('a');
+                        link.href = url;
+                        link.download = fileName;
+                        link.rel = 'noopener';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+                        recordedChunks = [];
+                        document.getElementById('share-rec-btn').hidden = false;
+                        toast('Сохранено ' + (blob.size / 1048576).toFixed(1) + ' MB');
+                    };
+                    mediaRecorder.start(1000);
+                    started = true;
+                    isRecording = true;
+                    recStartedAt = Date.now();
+                    recIndicator.style.display = 'block';
+                    recIndicator.textContent = '⏺ REC ' + mode.w + '×' + mode.h + ' @' + mode.fps;
+                    recTimer = setInterval(function () {
+                        recIndicator.textContent = '⏺ REC ' + mode.w + '×' + mode.h + ' @' + mode.fps + '  ' + formatRecTime(Date.now() - recStartedAt);
+                    }, 250);
+                    document.getElementById('rec-btn').textContent = '⏹ Стоп';
+                    document.getElementById('rec-btn').classList.add('active');
+                    if (a > 0) toast('Fallback запись: ' + mode.w + '×' + mode.h + '@' + mode.fps);
+                    else toast('Запись ' + mode.w + '×' + mode.h + '@' + mode.fps + (mime ? ' · ' + mime : ''));
+                } catch (err) {
+                    lastErr = err.message;
+                }
+            }
+
+            if (!started) {
+                applyRenderSize();
+                toast('Не удалось начать запись: ' + lastErr);
+            }
+        }
+
+        function getUploadEndpoint() {
+            var raw = document.getElementById('worker-endpoint').value.trim();
+            if (!raw) throw new Error('Укажи URL Cloudflare Worker после его публикации');
+
+            var endpoint;
+            try {
+                endpoint = new URL(raw);
+            } catch (e) {
+                throw new Error('Проверь URL Cloudflare Worker');
+            }
+            if (endpoint.protocol !== 'https:' || !endpoint.hostname.endsWith('.workers.dev') || endpoint.username || endpoint.password) {
+                throw new Error('Нужен HTTPS URL Worker в домене workers.dev');
+            }
+            if (endpoint.pathname === '/') endpoint.pathname = '/api/send-video';
+            if (endpoint.pathname !== '/api/send-video' || endpoint.search || endpoint.hash) {
+                throw new Error('URL Worker должен заканчиваться на /api/send-video');
+            }
+            return endpoint.href;
+        }
+
+        async function requestTelegramWriteAccess(webApp) {
+            var user = webApp.initDataUnsafe && webApp.initDataUnsafe.user;
+            if (user && user.allows_write_to_pm === true) return;
+            if (typeof webApp.requestWriteAccess !== 'function') return;
+
+            var allowed = await new Promise(function (resolve, reject) {
+                webApp.requestWriteAccess(function (granted) {
+                    if (granted) resolve(true);
+                    else reject(new Error('Разреши боту отправлять тебе сообщения'));
+                });
+            });
+            if (!allowed) throw new Error('Нет разрешения на отправку в чат бота');
+        }
+
+        async function shareRecording() {
+            if (!lastRecording) {
+                toast('Сначала запишите видео');
+                return;
+            }
+            var webApp = telegram;
+            if (!webApp || !webApp.initData) {
+                toast('Открой приложение из Telegram, чтобы отправить видео боту');
+                return;
+            }
+
+            var button = document.getElementById('share-rec-btn');
+            button.disabled = true;
+            button.textContent = 'Отправка...';
+            try {
+                var endpoint = getUploadEndpoint();
+                await requestTelegramWriteAccess(webApp);
+                var upload = new FormData();
+                upload.append('video', lastRecording, lastRecording.name || 'VJ_Studio.webm');
+                var response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'X-Telegram-Init-Data': webApp.initData },
+                    body: upload
+                });
+                var result = await response.json().catch(function () { return null; });
+                if (!response.ok) throw new Error(result && result.error || 'Ошибка отправки на сервер');
+                toast('Видео отправлено в чат бота');
+            } catch (e) {
+                toast(e.message || 'Не удалось отправить видео');
+            } finally {
+                button.disabled = false;
+                button.textContent = '↗ Отправить боту';
+            }
+        }
+
+        bind('rec-btn', 'click', toggleRecord);
+        bind('share-rec-btn', 'click', shareRecording);
+
+        var persistT = 0;
+        function persistSoon() {
+            clearTimeout(persistT);
+            persistT = setTimeout(saveState, 250);
+        }
+
+        function saveState() {
+            var ids = [
+                'preset-select', 'fx-select', 'param-scale', 'param-speed', 'param-bass-gain',
+                'param-mid-gain', 'param-treble-gain', 'param-hue', 'param-gradient-mix',
+                'param-tex-glow', 'param-fx-intensity', 'param-brightness', 'param-rotate',
+                'param-volume', 'rec-quality', 'render-quality', 'matrix-text-input', 'worker-endpoint'
+            ];
+            var o = { loop: audioElement.loop };
+            ids.forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) o[id] = el.value;
+            });
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(o)); } catch (e) {}
+        }
+
+        function restoreState() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                var o = JSON.parse(raw);
+                Object.keys(o).forEach(function (id) {
+                    if (id === 'loop') return;
+                    var el = document.getElementById(id);
+                    if (el) {
+                        el.value = o[id];
+                        el.dispatchEvent(new Event('input'));
+                        el.dispatchEvent(new Event('change'));
+                    }
+                });
+                if (typeof o.loop === 'boolean') {
+                    audioElement.loop = o.loop;
+                    document.getElementById('btn-loop').classList.toggle('active', o.loop);
+                }
+            } catch (e) {}
+        }
+
+        var clock = new THREE.Clock();
+        var fpsFrames = 0, fpsLast = performance.now();
+        var fpsLabel = document.getElementById('fps-label');
+        var meterBass = document.querySelector('#meter-bass i');
+        var meterMid = document.querySelector('#meter-mid i');
+        var meterTreble = document.querySelector('#meter-treble i');
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateAudioData();
+
+            var t = clock.getElapsedTime();
+            if (autoHue) {
+                uniforms.u_hue.value = (t * 0.15) % 6.28318;
+                document.getElementById('param-hue').value = uniforms.u_hue.value.toFixed(2);
+            }
+
+            if (uniforms.u_fx.value === 1) {
+                drawMatrixRain(document.getElementById('matrix-text-input').value);
+                matrixTexture.needsUpdate = true;
+            }
+
+            mouse.x += (mouse.targetX - mouse.x) * 0.1;
+            mouse.y += (mouse.targetY - mouse.y) * 0.1;
+            uniforms.u_mouse.value.set(mouse.x, mouse.y);
+            uniforms.u_time.value = t;
+
+            var idle = (!hasAudioSignal && !micOn && audioElement.paused) ? (0.12 + 0.08 * Math.sin(t * 0.7)) : 0;
+            uniforms.u_bass.value = audioData.bass + idle;
+            uniforms.u_mid.value = audioData.mid + idle * 0.6;
+            uniforms.u_treble.value = audioData.treble + idle * 0.4;
+            uniforms.u_tempo.value = tempoFactor;
+
+            meterBass.style.width = Math.min(100, audioData.bass * 140) + '%';
+            meterMid.style.width = Math.min(100, audioData.mid * 140) + '%';
+            meterTreble.style.width = Math.min(100, audioData.treble * 140) + '%';
+
+            fpsFrames++;
+            var now = performance.now();
+            if (now - fpsLast >= 500) {
+                var fps = Math.round(fpsFrames * 1000 / (now - fpsLast));
+                fpsLabel.textContent = fps + ' FPS';
+                fpsFrames = 0;
+                fpsLast = now;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function handleViewportResize() {
+            syncTelegramLayout();
+            if (!isRecording) applyRenderSize();
+        }
+
+        window.addEventListener('resize', handleViewportResize);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', handleViewportResize);
+        if (telegram && typeof telegram.onEvent === 'function') {
+            telegram.onEvent('viewportChanged', handleViewportResize);
+            telegram.onEvent('safeAreaChanged', syncTelegramLayout);
+            telegram.onEvent('contentSafeAreaChanged', syncTelegramLayout);
+            telegram.onEvent('fullscreenChanged', handleViewportResize);
+        }
+
+        restoreState();
+        applyRenderSize();
+        syncTelegramBackButton();
+        animate();
+        toast('H — меню · Space — play · ? — клавиши');
+    })();
+    </script>
+</body>
+</html>

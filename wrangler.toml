@@ -1,0 +1,7 @@
+name = "vj-studio-telegram-upload"
+main = "src/index.js"
+compatibility_date = "2026-10-13"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGINS = "https://nikitatkachen2002-del.github.io,http://127.0.0.1:8765"
