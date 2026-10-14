@@ -100,10 +100,16 @@ async function sendVideoToTelegram(request, env, origin) {
         return jsonResponse({ error: "Request is too large. Maximum video size is 45 MiB." }, 413, origin);
     }
 
-    const user = await validateTelegramInitData(
+    let user = await validateTelegramInitData(
         request.headers.get("X-Telegram-Init-Data"),
         env.TELEGRAM_BOT_TOKEN
     );
+
+    // Поддержка режима разработки для локальных тестов с ПК, если включено в переменных
+    if (!user && env.DEV_MODE === "true" && env.TEST_CHAT_ID) {
+        user = { id: Number(env.TEST_CHAT_ID), first_name: "TestUser" };
+    }
+
     if (!user) return jsonResponse({ error: "Telegram session is invalid or expired." }, 401, origin);
 
     let form;
@@ -130,7 +136,7 @@ async function sendVideoToTelegram(request, env, origin) {
     const method = video.type.startsWith("video/mp4") ? "sendVideo" : "sendDocument";
     const telegramForm = new FormData();
     telegramForm.set("chat_id", String(user.id));
-    telegramForm.set("caption", "Global VJ Studio recording");
+    telegramForm.set("caption", "🎬 Global VJ Studio recording");
     telegramForm.set(method === "sendVideo" ? "video" : "document", video, filename);
 
     let telegramResponse;
@@ -146,10 +152,60 @@ async function sendVideoToTelegram(request, env, origin) {
 
     const telegramResult = await telegramResponse.json().catch(() => null);
     if (!telegramResponse.ok || !telegramResult || telegramResult.ok !== true) {
-        return jsonResponse({ error: "Telegram rejected the upload. Start the bot chat and try again." }, 502, origin);
+        const errDesc = telegramResult && telegramResult.description ? telegramResult.description : "Unknown Telegram error";
+        return jsonResponse({ error: "Telegram rejected the upload: " + errDesc }, 502, origin);
     }
 
-    return jsonResponse({ ok: true, messageId: telegramResult.result.message_id }, 200, origin);
+    const resObj = telegramResult.result;
+    const mediaObj = resObj.video || resObj.document;
+    let downloadUrl = null;
+
+    // Получаем прямую ссылку через getFile (если файл <= 20 МБ, лимит Telegram Bot API)
+    if (mediaObj && mediaObj.file_id) {
+        if (!mediaObj.file_size || mediaObj.file_size <= 20 * 1024 * 1024) {
+            try {
+                const fileRes = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getFile?file_id=${mediaObj.file_id}`);
+                const fileJson = await fileRes.json();
+                if (fileJson.ok && fileJson.result && fileJson.result.file_path) {
+                    downloadUrl = `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${fileJson.result.file_path}`;
+                }
+            } catch (e) {
+                console.error("Failed to fetch file path:", e);
+            }
+        }
+    }
+
+    // Формируем красивое сообщение с инлайн-кнопкой
+    let messageText = `✨ <b>Global VJ Studio Pro</b>\n\n🎬 Ваша запись экрана успешно обработана и доставлена!`;
+    let replyMarkup = undefined;
+
+    if (downloadUrl) {
+        messageText += `\n\nНажмите на кнопку ниже, чтобы открыть или скачать видео (подходит для менеджеров закачек):`;
+        replyMarkup = {
+            inline_keyboard: [
+                [{ text: "📥 Скачать запись (Прямая ссылка)", url: downloadUrl }]
+            ]
+        };
+    } else {
+        messageText += `\n\n*(Видео загружено в чат как документ/файл выше).*`;
+    }
+
+    try {
+        await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                chat_id: user.id,
+                text: messageText,
+                parse_mode: "HTML",
+                reply_markup: replyMarkup
+            })
+        });
+    } catch (e) {
+        console.error("Failed to send button message:", e);
+    }
+
+    return jsonResponse({ ok: true, messageId: resObj.message_id }, 200, origin);
 }
 
 export default {
